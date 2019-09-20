@@ -94,15 +94,16 @@ def packFont(font_path):
 	bmp_files = sorted(glob.glob('bmp-bip' +  os.sep + '*'))
 
 	for i in range (0, len(bmp_files)):
-		margin_top = int(bmp_files[i][8])
+		sys.stdout.write("%d/%d\r" % (i,len(bmp_files)))
+		margin_top = int(bmp_files[i].split(os.sep)[1][4])
 		
 		if(i == 0):
-			unicode = int(bmp_files[i][4:-5],16)
+			unicode = int(bmp_files[i].split(os.sep)[1][0:4],16)
 		else:
 			unicode = next_unicode
 		
 		if(i+1 < len(bmp_files)):
-			next_unicode = int(bmp_files[i+1][4:-5],16)
+			next_unicode = int(bmp_files[i+1].split(os.sep)[1][0:4],16)
 		else:
 			next_unicode = -1
 		
