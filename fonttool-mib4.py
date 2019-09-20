@@ -26,8 +26,8 @@ def unpackFont(font_path):
 	
 	font_file = open(font_path, 'rb')
 	font_path.join(font_path.split(os.sep)[:-1])
-	if not os.path.exists('bmp2'):
-		os.makedirs('bmp2')
+	if not os.path.exists('bmp-mib4'):
+		os.makedirs('bmp-mib4')
 	# header = 16 bytes
 	header = font_file.read(0x20)
 
@@ -38,23 +38,70 @@ def unpackFont(font_path):
 	print ("byte0B version?!:%x" %byte0A)
 
 	offset = (header[0x1F] << 24) + (header[0x1E] << 16) + (header[0x1D] << 8) + header[0x1C]
-	print ("offset to second file: 0x%x" %offset)
+	print ("offset to fixed size fonts: 0x%x" %offset)
 
-	if 1 == 2:
+
+	num_ranges_b = font_file.read(0x2)
+	num_ranges = (num_ranges_b[0x1] << 8) + num_ranges_b[0x0]
+	
+	ranges = font_file.read(num_ranges*6)
+	#print ("ranges:" ,ranges)
+	startrange = (ranges[len(ranges)-5] << 8) + ranges[len(ranges)-6]
+	endrange = (ranges[len(ranges)-3] << 8) + ranges[len(ranges)-4]
+	num_characters = (ranges[len(ranges)-1] << 8) + ranges[len(ranges)-2] +  endrange - startrange + 1
+	print ("num_characters: %d" % (num_characters))
+	
+	startrange = (ranges[1] << 8) + ranges[0]
+	endrange = (ranges[3] << 8) + ranges[2]
+	#sys.exit(1)
+	range_nr = 0;
+	for i in range (0, num_characters):
+		sys.stdout.write("%d/%d\r" % (i,num_characters))
+		#print ("startrange:%x %d" % (startrange,startrange))
+		#print ("endrange:%x %d" % (endrange,endrange))
+	
+		img = Image.new('1', (24, 24), 0)
+		pixels = img.load()
+		char_bytes = font_file.read(72) 
+		x = 0
+		y = 0
+		# big endian
+		int_bytes = []
+		for b in range(0,23):
+			int_bytes.append((char_bytes[b*3+0]<<16) + (char_bytes[b*3+1]<<8) + char_bytes[b*3+2])
+		#print (["%06x" % c  for c in int_bytes])
+		for byte in int_bytes:
+			#print (byte)
+			bits = [(byte >> bit) & 1 for bit in range(24 - 1, -1, -1)]
+			#print ("->"," ".join([ chr(b+32) for b in bits]).replace("!","X"),"<-")
+			for b in bits:
+				pixels[x, y] = b
+				x += 1
+				if x == 24:
+					x = 0
+					y += 1
+		margin_top = font_file.read(1)
+		img.save("bmp-mib4" + os.sep + '{:04x}'.format(startrange) + str(margin_top[0] % 16) + '.bmp') 
+		#print ("margin_top:%x" % (margin_top[0] % 16))
+		startrange += 1
+		if startrange > endrange and range_nr+1 < num_ranges:
+			range_nr += 1
+			startrange = (ranges[range_nr * 6 + 1] << 8) + ranges[range_nr * 6]
+			endrange = (ranges[range_nr * 6 + 3] << 8) + ranges[range_nr * 6 + 2]
+		
+	if offset !=  0xffffffff:
+		if not os.path.exists('bmp-mib4-fixed'):
+			os.makedirs('bmp-mib4-fixed')
 		#font_file.read(offset)
 
 		num_ranges_b = font_file.read(0x2)
 		num_ranges = (num_ranges_b[0x1] << 8) + num_ranges_b[0x0]
-		print ("num_ranges:%x" %num_ranges)
-		print ("%x %s " % (0x198417+0x20+num_ranges*6,"offset to second file: 0x198417"))
 
 		ranges = font_file.read(num_ranges*6)
 		#print ("ranges:" ,ranges)
 		startrange = (ranges[len(ranges)-5] << 8) + ranges[len(ranges)-6]
 		endrange = (ranges[len(ranges)-3] << 8) + ranges[len(ranges)-4]
 		num_characters = (ranges[len(ranges)-1] << 8) + ranges[len(ranges)-2] +  endrange - startrange + 1
-		print ("last startrange:%x %d" % (startrange,startrange))
-		print ("last endrange:%x %d" % (endrange,endrange))
 		print ("num_characters: %d" % (num_characters))
 
 		startrange = (ranges[1] << 8) + ranges[0]
@@ -62,63 +109,7 @@ def unpackFont(font_path):
 		#sys.exit(1)
 		range_nr = 0;
 		for i in range (0, num_characters):
-			#print ("startrange:%x %d" % (startrange,startrange))
-			#print ("endrange:%x %d" % (endrange,endrange))
-
-			img = Image.new('1', (24, 24), 0)
-			pixels = img.load()
-			char_bytes = font_file.read(72) 
-			print ("%d/%d" % (i,num_characters))
-			x = 0
-			y = 0
-			# big endian
-			int_bytes = []
-			for b in range(0,23):
-				int_bytes.append((char_bytes[b*3+0]<<16) + (char_bytes[b*3+1]<<8) + char_bytes[b*3+2])
-			#print (["%06x" % c  for c in int_bytes])
-			for byte in int_bytes:
-				#print (byte)
-				bits = [(byte >> bit) & 1 for bit in range(24 - 1, -1, -1)]
-				print ("->"," ".join([ chr(b+32) for b in bits]).replace("!","X"),"<-")
-				for b in bits:
-					pixels[x, y] = b
-					x += 1
-					if x == 24:
-						x = 0
-						y += 1
-			margin_top = font_file.read(1)
-			img.save("bmp2" + os.sep + '{:04x}'.format(startrange) + str(margin_top[0] % 16) + '.bmp') 
-			print ("margin_top:%x" % (margin_top[0] % 16))
-			startrange += 1
-			if startrange > endrange and range_nr+1 < num_ranges:
-				range_nr += 1
-				startrange = (ranges[range_nr * 6 + 1] << 8) + ranges[range_nr * 6]
-				endrange = (ranges[range_nr * 6 + 3] << 8) + ranges[range_nr * 6 + 2]
-
-		print ("%x %s " % (font_file.tell(),"offset to second file: 0x198417"))
-
-	else:
-		font_file.read(offset)
-
-		num_ranges_b = font_file.read(0x2)
-		num_ranges = (num_ranges_b[0x1] << 8) + num_ranges_b[0x0]
-		print ("num_ranges:%x" %num_ranges)
-		print ("%x %s " % (0x198417+0x20+num_ranges*6,"offset to second file: 0x198417"))
-
-		ranges = font_file.read(num_ranges*6)
-		#print ("ranges:" ,ranges)
-		startrange = (ranges[len(ranges)-5] << 8) + ranges[len(ranges)-6]
-		endrange = (ranges[len(ranges)-3] << 8) + ranges[len(ranges)-4]
-		num_characters = (ranges[len(ranges)-1] << 8) + ranges[len(ranges)-2] +  endrange - startrange + 1
-		print ("last startrange:%x %d" % (startrange,startrange))
-		print ("last endrange:%x %d" % (endrange,endrange))
-		print ("num_characters: %d" % (num_characters))
-
-		startrange = (ranges[1] << 8) + ranges[0]
-		endrange = (ranges[3] << 8) + ranges[2]
-		#sys.exit(1)
-		range_nr = 0;
-		for i in range (0, num_characters):
+			sys.stdout.write("%d/%d\r" % (i,num_characters))
 			#print ("startrange:%x %d" % (startrange,startrange))
 			#print ("endrange:%x %d" % (endrange,endrange))
 
@@ -126,7 +117,6 @@ def unpackFont(font_path):
 			pixels = img.load()
 			#char_bytes = font_file.read(8)
 			char_bytes = font_file.read(40)
-			print ("%d/%d" % (i,num_characters))
 			x = 0
 			y = 0
 			# big endian
@@ -147,18 +137,14 @@ def unpackFont(font_path):
 						y += 1
 			#margin_top = font_file.read(1)
 			margin_top = [0]
-			img.save("bmp2" + os.sep + '{:04x}'.format(startrange) + str(margin_top[0] % 16) + '.bmp') 
-			print ("margin_top:%x" % (margin_top[0] % 16))
+			img.save("bmp-mib4-fixed" + os.sep + '{:04x}'.format(startrange) + str(margin_top[0] % 16) + '.bmp') 
+			#print ("margin_top:%x" % (margin_top[0] % 16))
 			startrange += 1
 			if startrange > endrange and range_nr+1 < num_ranges:
 				range_nr += 1
 				startrange = (ranges[range_nr * 6 + 1] << 8) + ranges[range_nr * 6]
 				endrange = (ranges[range_nr * 6 + 3] << 8) + ranges[range_nr * 6 + 2]
 
-		print ("%x %s " % (font_file.tell(),"offset to second file: 0x198417"))
-
-	
-	
 # Create a Amazfit Bip file from bmps
 def packFont(font_path):
 	print('Packing', font_path)

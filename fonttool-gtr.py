@@ -56,8 +56,8 @@ def unpackFont(font_path):
 	
 	font_file = open(font_path, 'rb')
 	font_path.join(font_path.split(os.sep)[:-1])
-	if not os.path.exists('gtr'):
-		os.makedirs('gtr')
+	if not os.path.exists('bmp-gtr'):
+		os.makedirs('bmp-gtr')
 	# header = 16 bytes
 	file_content = font_file.read()
 	header = file_content[0x0:0x20]
@@ -123,7 +123,7 @@ def unpackFont(font_path):
 				png_attr={}
 				png_attr["greyscale"] = True
 				png_attr['bitdepth']=4
-				png_out_file =open("gtr\\%08x.png" % unicode,"wb")
+				png_out_file =open("bmp-gtr\\%08x.png" % unicode,"wb")
 				pngwriter=png.Writer(width, height, **png_attr)
 				png_out_image=[]
 				decode_len=1
