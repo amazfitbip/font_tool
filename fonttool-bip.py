@@ -29,21 +29,31 @@ def unpackFont(font_path):
 	if not os.path.exists('bmp-bip'):
 		os.makedirs('bmp-bip')
 	# header = 16 bytes
-	header = font_file.read(0x22)
-	num_ranges = (header[0x21] << 8) + header[0x20]
-	print ("num_ranges",num_ranges)
+	header = font_file.read(0x20)
+
+	byte04 = header[0x04]
+	print ("byte04 chaohu=8 mib4=1 falcon=a :%x" %byte04)
+
+	byte0A = header[0x0A]
+	print ("byte0B version?!:%x" %byte0A)
+
+	offset = (header[0x1F] << 24) + (header[0x1E] << 16) + (header[0x1D] << 8) + header[0x1C]
+	print ("offset to fixed size fonts: 0x%x" %offset)
+
+	num_ranges_b = font_file.read(0x2)
+	num_ranges = (num_ranges_b[0x1] << 8) + num_ranges_b[0x0]
 	
 	ranges = font_file.read(num_ranges*6)
 	startrange = (ranges[len(ranges)-5] << 8) + ranges[len(ranges)-6]
 	endrange = (ranges[len(ranges)-3] << 8) + ranges[len(ranges)-4]
 	num_characters = (ranges[len(ranges)-1] << 8) + ranges[len(ranges)-2] +  endrange - startrange + 1
-	print ("num_characters %x %x %x" % (num_characters,ranges[len(ranges)-1], ranges[len(ranges)-2]))
-	print ("%x" % (0x22 + num_ranges*6))
+	print ("num_characters: %d" % (num_characters))
 
 	startrange = (ranges[1] << 8) + ranges[0]
 	endrange = (ranges[3] << 8) + ranges[2]
 	range_nr = 0;
 	for i in range (0, num_characters):
+		sys.stdout.write("%d/%d\r" % (i,num_characters))
 
 		img = Image.new('1', (16, 16), 0)
 		pixels = img.load()
