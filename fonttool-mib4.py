@@ -56,6 +56,7 @@ def unpackFont(font_path):
 	#sys.exit(1)
 	range_nr = 0;
 	for i in range (0, num_characters):
+	#for i in range (0, 10):
 		sys.stdout.write("%d/%d\r" % (i,num_characters))
 		#print ("startrange:%x %d" % (startrange,startrange))
 		#print ("endrange:%x %d" % (endrange,endrange))
@@ -67,6 +68,7 @@ def unpackFont(font_path):
 		y = 0
 		# big endian
 		int_bytes = []
+		#print (len(char_bytes),["%02x" % c  for c in char_bytes])
 		for b in range(0,23):
 			int_bytes.append((char_bytes[b*3+0]<<16) + (char_bytes[b*3+1]<<8) + char_bytes[b*3+2])
 		#print (["%06x" % c  for c in int_bytes])
@@ -89,10 +91,9 @@ def unpackFont(font_path):
 			startrange = (ranges[range_nr * 6 + 1] << 8) + ranges[range_nr * 6]
 			endrange = (ranges[range_nr * 6 + 3] << 8) + ranges[range_nr * 6 + 2]
 		
-	if offset !=  0xffffffff:
+	if offset !=  0xffffffff and False:
 		if not os.path.exists('bmp-mib4-fixed'):
 			os.makedirs('bmp-mib4-fixed')
-		#font_file.read(offset)
 
 		num_ranges_b = font_file.read(0x2)
 		num_ranges = (num_ranges_b[0x1] << 8) + num_ranges_b[0x0]
@@ -149,25 +150,27 @@ def unpackFont(font_path):
 def packFont(font_path):
 	print('Packing', font_path)
 	font_file = open(font_path, 'wb')
-	header = bytearray(binascii.unhexlify('4E455A4B08FFFFFFFFFF01000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000'))
+	header = bytearray(binascii.unhexlify('4E455A4B01FFFFFFFFFF03000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000'))
 	bmps = bytearray()
 	
 	range_nr = 0
 	seq_nr = 0
 	startrange = -1
 	
-	bmp_files = sorted(glob.glob('bmp' +  os.sep + '*'))
+	bmp_files = sorted(glob.glob('bmp-mib4' +  os.sep + '*'))
 
 	for i in range (0, len(bmp_files)):
-		margin_top = int(bmp_files[i][8])
+	#for i in range (0, 10):
+		sys.stdout.write("%d/%d\r" % (i,len(bmp_files)))
+		margin_top = int(bmp_files[i].split(os.sep)[1][4])
 		
 		if(i == 0):
-			unicode = int(bmp_files[i][4:-5],16)
+			unicode = int(bmp_files[i].split(os.sep)[1][0:4],16)
 		else:
 			unicode = next_unicode
 		
 		if(i+1 < len(bmp_files)):
-			next_unicode = int(bmp_files[i+1][4:-5],16)
+			next_unicode = int(bmp_files[i+1].split(os.sep)[1][0:4],16)
 		else:
 			next_unicode = -1
 		
@@ -184,20 +187,34 @@ def packFont(font_path):
 			y = 0
 			char_width = 0;
 
-			while y < 16:
+			cnt=0
+			cnt2=0
+			#print ("LEN",len(bmps),cnt,cnt2,char_width)
+			ft = bytearray()
+			while y < 24:
 				b = 0
 				for j in range(0, 8):
+					cnt+=1
+					#print (x,y)
 					if pixels[x, y] != (0, 0, 0):
 						b = b | (1 << (7 - j))
 						if (x > char_width):
 							char_width = x
 					x += 1
-					if x == 16:
+					if x == 24:
 						x = 0
 						y += 1
+				cnt2+=1
+				#print ("DEBUG",b.to_bytes(1, 'big'))
 				bmps.extend(b.to_bytes(1, 'big'))
+				ft.extend(b.to_bytes(1, 'big'))
+			
+			#print ("LEN",len(bmps),cnt,cnt2,char_width)
 			char_width = char_width * 16 + margin_top;
+			char_width = 0 + margin_top;
 			bmps.extend(char_width.to_bytes(1, 'big'))
+			#print (["%02x" % c for c in list(ft)]) 
+			
 			
 			if (unicode+1 != next_unicode):
 				endrange = unicode
