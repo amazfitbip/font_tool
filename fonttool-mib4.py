@@ -40,7 +40,6 @@ def unpackFont(font_path):
 	offset = (header[0x1F] << 24) + (header[0x1E] << 16) + (header[0x1D] << 8) + header[0x1C]
 	print ("offset to fixed size fonts: 0x%x" %offset)
 
-
 	num_ranges_b = font_file.read(0x2)
 	num_ranges = (num_ranges_b[0x1] << 8) + num_ranges_b[0x0]
 	
@@ -56,7 +55,7 @@ def unpackFont(font_path):
 	#sys.exit(1)
 	range_nr = 0;
 	for i in range (0, num_characters):
-	#for i in range (0, 10):
+	#for i in range (0, 32):
 		sys.stdout.write("%d/%d\r" % (i,num_characters))
 		#print ("startrange:%x %d" % (startrange,startrange))
 		#print ("endrange:%x %d" % (endrange,endrange))
@@ -69,7 +68,7 @@ def unpackFont(font_path):
 		# big endian
 		int_bytes = []
 		#print (len(char_bytes),["%02x" % c  for c in char_bytes])
-		for b in range(0,23):
+		for b in range(0,24):
 			int_bytes.append((char_bytes[b*3+0]<<16) + (char_bytes[b*3+1]<<8) + char_bytes[b*3+2])
 		#print (["%06x" % c  for c in int_bytes])
 		for byte in int_bytes:
@@ -83,15 +82,15 @@ def unpackFont(font_path):
 					x = 0
 					y += 1
 		margin_top = font_file.read(1)
-		img.save("bmp-mib4" + os.sep + '{:04x}'.format(startrange) + str(margin_top[0] % 16) + '.bmp') 
-		#print ("margin_top:%x" % (margin_top[0] % 16))
+		img.save("bmp-mib4" + os.sep + '{:04x}'.format(startrange) + '{:02x}'.format(margin_top[0] ) + '.bmp') 
+		#print ("margin_top:%x" % margin_top[0])
 		startrange += 1
 		if startrange > endrange and range_nr+1 < num_ranges:
 			range_nr += 1
 			startrange = (ranges[range_nr * 6 + 1] << 8) + ranges[range_nr * 6]
 			endrange = (ranges[range_nr * 6 + 3] << 8) + ranges[range_nr * 6 + 2]
 		
-	if offset !=  0xffffffff and False:
+	if offset !=  0xffffffff:
 		if not os.path.exists('bmp-mib4-fixed'):
 			os.makedirs('bmp-mib4-fixed')
 
@@ -162,7 +161,7 @@ def packFont(font_path):
 	for i in range (0, len(bmp_files)):
 	#for i in range (0, 10):
 		sys.stdout.write("%d/%d\r" % (i,len(bmp_files)))
-		margin_top = int(bmp_files[i].split(os.sep)[1][4])
+		margin_top = int(bmp_files[i].split(os.sep)[1][4:6],16)
 		
 		if(i == 0):
 			unicode = int(bmp_files[i].split(os.sep)[1][0:4],16)
@@ -174,7 +173,7 @@ def packFont(font_path):
 		else:
 			next_unicode = -1
 		
-		if (unicode != next_unicode):		
+		if (unicode != next_unicode):
 			if (startrange == -1):
 				range_nr += 1			 
 				startrange = unicode
@@ -182,15 +181,15 @@ def packFont(font_path):
 			img = Image.open(bmp_files[i])
 			img_rgb = img.convert('RGB')
 			pixels = img_rgb.load()
-
+			
 			x = 0
 			y = 0
 			char_width = 0;
-
+			
 			cnt=0
-			cnt2=0
+			#cnt2=0
 			#print ("LEN",len(bmps),cnt,cnt2,char_width)
-			ft = bytearray()
+			#ft = bytearray()
 			while y < 24:
 				b = 0
 				for j in range(0, 8):
@@ -204,14 +203,26 @@ def packFont(font_path):
 					if x == 24:
 						x = 0
 						y += 1
-				cnt2+=1
+					#if y == 23:
+					#	print ("23")
+					#	if pixels[x,y] != (0,0,0):
+					#		sys.stdout.write("X")
+					#	else:
+					#		sys.stdout.write(" ")
+					
+				#cnt2+=1
 				#print ("DEBUG",b.to_bytes(1, 'big'))
 				bmps.extend(b.to_bytes(1, 'big'))
-				ft.extend(b.to_bytes(1, 'big'))
+				#ft.extend(b.to_bytes(1, 'big'))
+				
 			
 			#print ("LEN",len(bmps),cnt,cnt2,char_width)
-			char_width = char_width * 16 + margin_top;
-			char_width = 0 + margin_top;
+			#char_width = (char_width <<3 )+ margin_top;
+			#char_width = (char_width <<3 )+ margin_top;
+			if char_width < margin_top:
+			#if char_width == 0:
+				char_width = margin_top
+			#print ("ft %02d CHAR_WIDTH 0x%02x MARGIN TOP 0x%02x" %(i,char_width, margin_top))
 			bmps.extend(char_width.to_bytes(1, 'big'))
 			#print (["%02x" % c for c in list(ft)]) 
 			
@@ -235,9 +246,114 @@ def packFont(font_path):
 	rnr = range_nr.to_bytes(2, byteorder='big')
 	header[0x20] = rnr[1]
 	header[0x21] = rnr[0]
+	
+	offset = (len(bmps) + rnr * 6)
+	ofs = offset.to_bytes(4, byteorder='big')
+    header[0x1f] = ofs[3]
+	header[0x1e] = ofs[2]
+	header[0x1d] = ofs[1]
+	header[0x1c] = ofs[0]
 
-	font_file.write(header)	
-	font_file.write(bmps)		
+	font_file.write(header)
+	font_file.write(bmps)
+
+	#pack fixed fize fonts
+
+	bmps = bytearray()
+	
+	range_nr = 0
+	seq_nr = 0
+	startrange = -1
+	
+	bmp_files = sorted(glob.glob('bmp-mib4-fixed' +  os.sep + '*'))
+
+	for i in range (0, len(bmp_files)):
+	#for i in range (0, 10):
+		sys.stdout.write("%d/%d\r" % (i,len(bmp_files)))
+		margin_top = int(bmp_files[i].split(os.sep)[1][4:6],16)
+		
+		if(i == 0):
+			unicode = int(bmp_files[i].split(os.sep)[1][0:4],16)
+		else:
+			unicode = next_unicode
+		
+		if(i+1 < len(bmp_files)):
+			next_unicode = int(bmp_files[i+1].split(os.sep)[1][0:4],16)
+		else:
+			next_unicode = -1
+		
+		if (unicode != next_unicode):
+			if (startrange == -1):
+				range_nr += 1			 
+				startrange = unicode
+			
+			img = Image.open(bmp_files[i])
+			img_rgb = img.convert('RGB')
+			pixels = img_rgb.load()
+			
+			x = 0
+			y = 0
+			char_width = 0;
+			
+			cnt=0
+			#cnt2=0
+			#print ("LEN",len(bmps),cnt,cnt2,char_width)
+			#ft = bytearray()
+			while y < 24:
+				b = 0
+				for j in range(0, 8):
+					cnt+=1
+					#print (x,y)
+					if pixels[x, y] != (0, 0, 0):
+						b = b | (1 << (7 - j))
+						if (x > char_width):
+							char_width = x
+					x += 1
+					if x == 24:
+						x = 0
+						y += 1
+					#if y == 23:
+					#	print ("23")
+					#	if pixels[x,y] != (0,0,0):
+					#		sys.stdout.write("X")
+					#	else:
+					#		sys.stdout.write(" ")
+					
+				#cnt2+=1
+				#print ("DEBUG",b.to_bytes(1, 'big'))
+				bmps.extend(b.to_bytes(1, 'big'))
+				#ft.extend(b.to_bytes(1, 'big'))
+				
+			
+			#print ("LEN",len(bmps),cnt,cnt2,char_width)
+			#char_width = (char_width <<3 )+ margin_top;
+			#char_width = (char_width <<3 )+ margin_top;
+			if char_width < margin_top:
+			#if char_width == 0:
+				char_width = margin_top
+			#print ("ft %02d CHAR_WIDTH 0x%02x MARGIN TOP 0x%02x" %(i,char_width, margin_top))
+			bmps.extend(char_width.to_bytes(1, 'big'))
+			#print (["%02x" % c for c in list(ft)]) 
+			
+			
+			if (unicode+1 != next_unicode):
+				endrange = unicode
+				sb = startrange.to_bytes(2, byteorder='big')
+				header.append(sb[1])
+				header.append(sb[0])
+				eb = endrange.to_bytes(2, byteorder='big')	
+				header.append(eb[1])
+				header.append(eb[0])
+				seq = seq_nr.to_bytes(2, byteorder='big')	
+				header.append(seq[1])
+				header.append(seq[0])
+				seq_nr += endrange - startrange + 1
+				startrange = -1
+		else:
+			print('multiple files of {:04x}'.format(unicode))
+
+	font_file.write(header)
+	font_file.write(bmps)
 
 if len(sys.argv) == 3 and sys.argv[1] == 'unpack':
 	unpackFont(sys.argv[2])
