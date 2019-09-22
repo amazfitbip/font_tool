@@ -157,8 +157,8 @@ def packFont(font_path):
 	seq_nr = 0
 	startrange = -1
 	
-	if False:
-		bmp_files = sorted(glob.glob('bmp-mib4' +  os.sep + '*'))
+	bmp_files = sorted(glob.glob('bmp-mib4' +  os.sep + '*'))
+	if True:
 
 		for i in range (0, len(bmp_files)):
 		#for i in range (0, 10):
@@ -192,7 +192,7 @@ def packFont(font_path):
 				#cnt2=0
 				#print ("LEN",len(bmps),cnt,cnt2,char_width)
 				#ft = bytearray()
-				while y < 20:
+				while y < 24:
 					b = 0
 					for j in range(0, 8):
 						cnt+=1
@@ -201,10 +201,15 @@ def packFont(font_path):
 							b = b | (1 << (7 - j))
 							if (x > char_width):
 								char_width = x
+							#sys.stdout.write("X")
+						#else:
+							#sys.stdout.write(" ")
+
 						x += 1
-						if x == 16:
+						if x == 24:
 							x = 0
 							y += 1
+							#sys.stdout.write("\n")
 						#if y == 23:
 						#	print ("23")
 						#	if pixels[x,y] != (0,0,0):
@@ -216,7 +221,6 @@ def packFont(font_path):
 					#print ("DEBUG",b.to_bytes(1, 'big'))
 					bmps.extend(b.to_bytes(1, 'big'))
 					#ft.extend(b.to_bytes(1, 'big'))
-					
 				
 				#print ("LEN",len(bmps),cnt,cnt2,char_width)
 				#char_width = (char_width <<3 )+ margin_top;
@@ -248,7 +252,8 @@ def packFont(font_path):
 		rnr = range_nr.to_bytes(2, byteorder='big')
 		header[0x20] = rnr[1]
 		header[0x21] = rnr[0]
-	else: #avoid compute all progressive font for develpment of fixed one
+	else:
+		print ("#avoid compute all progressive font for develpment of fixed one")
 		f = open("Font.emoticon.MB4.v3a.ft", "rb")
 		header = bytearray(f.read(0x20))
 		rnrb = f.read(0x2)
@@ -262,7 +267,11 @@ def packFont(font_path):
 		#header[0x20] = rnrb[0]
 		#header[0x21] = rnrb[1]
 	
-	offset = (len(bmps) )
+	offset = (len(bmps) + range_nr *6 + 2)
+	print ("len_bmps_files:%x "%len(bmp_files))
+	print ("len_bmps should be:%x "%(len(bmp_files) * 73))
+	print ("len_bmps:%x "%len(bmps))
+	print ("len_header:%x "%len(header))
 	ofs = offset.to_bytes(4, byteorder='big')
 	header[0x1f] = ofs[0]
 	header[0x1e] = ofs[1]
@@ -274,7 +283,7 @@ def packFont(font_path):
 
 	#pack fixed fize fonts
 
-	header = bytearray()
+	header = bytearray([0,0])
 	bmps = bytearray()
 	
 	range_nr = 0
@@ -349,7 +358,7 @@ def packFont(font_path):
 				char_width = margin_top
 			#print ("ft %02d CHAR_WIDTH 0x%02x MARGIN TOP 0x%02x" %(i,char_width, margin_top))
 			#bmps.extend(char_width.to_bytes(1, 'big'))
-			print ("i:%d" % i," ".join(["%02x" % c for c in list(ft)])) 
+			#print ("i:%d" % i," ".join(["%02x" % c for c in list(ft)])) 
 			
 			
 			if (unicode+1 != next_unicode):
@@ -368,8 +377,9 @@ def packFont(font_path):
 		else:
 			print('multiple files of {:04x}'.format(unicode))
 
-	#rnr = range_nr.to_bytes(2, byteorder='big')
-	#header.extend([rnr[1], rnr[0]])
+	rnr = range_nr.to_bytes(2, byteorder='big')
+	header[0]=rnr[1]
+	header[1]=rnr[0]
 	
 	font_file.write(header)
 	font_file.write(bmps)
