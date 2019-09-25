@@ -67,6 +67,13 @@ def unpackFont(font_path):
 	#num_ranges = (header[0x21] << 8) + header[0x20]
 	#print ("num_ranges 0x%x" % num_ranges)
 	
+	fontFlag = header[0x0A]
+	isNonLatin = bool(fontFlag & 1)
+	isLatin = bool((fontFlag & 2)>>1)
+	print ("non-Latin: %s" % (isNonLatin))
+	print ("Latin:     %s" % (isLatin))
+	
+	
 	last_block = file_content[-0xe::]
 	print ("last_block", last_block)
 	last_img = (ord(last_block[3:4])<<24) + (ord(last_block[2:3])<<16) + (ord(last_block[1:2])<<8)+ (ord(last_block[0:1])<<0)

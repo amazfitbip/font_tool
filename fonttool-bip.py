@@ -34,9 +34,12 @@ def unpackFont(font_path):
 	byte04 = header[0x04]
 	print ("byte04 chaohu=8 mib4=1 falcon=a :%x" %byte04)
 
-	byte0A = header[0x0A]
-	print ("byte0B version?!:%x" %byte0A)
-
+	fontFlag = header[0x0A]
+	isNonLatin = bool(fontFlag & 1)
+	isLatin = bool((fontFlag & 2)>>1)
+	print ("non-Latin: %s" % (isNonLatin))
+	print ("Latin:     %s" % (isLatin))
+	
 	offset = (header[0x1F] << 24) + (header[0x1E] << 16) + (header[0x1D] << 8) + header[0x1C]
 	print ("offset to fixed size fonts: 0x%x" %offset)
 
