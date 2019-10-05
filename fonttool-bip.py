@@ -32,7 +32,7 @@ def unpackFont(font_path):
 	header = font_file.read(0x20)
 
 	byte04 = header[0x04]
-	print ("byte04 chaohu=8 mib4=1 falcon=a :%x" %byte04)
+	print ("byte04 chaohu=8_china chaohu=9_intl mib4=1 falcon=a :%x" %byte04)  #fontversion
 
 	fontFlag = header[0x0A]
 	isNonLatin = bool(fontFlag & 1)
