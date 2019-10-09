@@ -108,8 +108,6 @@ def unpackFont(font_path):
 		print ("           ptr_to_img |U+xxy|w |h |        |footer  |")
 		print ("----------------------|-----|--|--|--|--|--|--------|")
 		print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%08x" %(pointer, " ".join(["%02x" % el for el in list(last_block)]), img_addr, unicode, ))
-		pointer -=0xe
-		last_block = file_content[pointer:pointer+0xe]
 		if False: #unicode != 0x00c7 and unicode != 0x00c8 :
 			#print (unicode)
 			continue
@@ -119,21 +117,18 @@ def unpackFont(font_path):
 
 			print ("imgsize:0x%04x h:%d w:%d h:%x w:%x" % (imgsize,height,width,height,width))
 			#write_raw_image_data
-			#bmp = open("gtr\\%08x.data" % unicode, 'wb')
-			#bmp.write(file_content[0x20+img_addr:0x20+img_addr+imgsize])
-			#bmp.close()
+			bmp = open("gtr\\%08x.data" % unicode, 'wb')
+			bmp.write(file_content[0x20+img_addr:0x20+img_addr+imgsize])
+			bmp.close()
 						
 			if width >0 and height >0:
 				#if unicode == 0x000021:
 				#	print(file_content[0x20+img_addr:0x20+img_addr+imgsize])
 				#print ("XX w: %d h:%d %d %d" %(width, height,((width+1)//2),(width)//2))
-				png_attr={}
-				png_attr["greyscale"] = True
-				png_attr['bitdepth']=4
-				png_out_file =open("bmp-gtr" + os.path.sep + "%08x.png" % unicode,"wb")
-				pngwriter=png.Writer(width, height, **png_attr)
+
 				png_out_image=[]
 				decode_len=1
+				modino=""
 				for row in range(0,height):
 					row_out=[]
 					for col in range(0,width):
@@ -143,11 +138,13 @@ def unpackFont(font_path):
 						#if unicode == 0x0000c7:
 						#	print ("XX",(width+1)//2,(width)//2)
 						if (col % 2) == 0:
-						        #pari
+						    #dispari - sembra abbia problemi!!!!
 							ch = ord(file_content[0x20+img_addr+row*((width+1)//2) + col//2:0x20+img_addr+row*((width+1)//2)+ col//2+1]) &0xf
+							modino = "pari"
 						else:
-						        #dispari
+						    #pari ok
 							ch = ord(file_content[0x20+img_addr+row*((width+1)//2) + col//2:0x20+img_addr+row*((width+1)//2)+ col//2+1]) >>4
+							modino = "dispari"
 						#if row==11 and unicode==0x0028:
 						#	print(col,0x20+img_addr+pos,file_content[0x20+img_addr+pos:0x20+img_addr+pos+1],ch)
 						
@@ -155,6 +152,12 @@ def unpackFont(font_path):
 					#print(row_out)
 					png_out_image.append(row_out)
 				#print (png_out_image)
+				png_attr={}
+				png_attr["greyscale"] = True
+				png_attr['bitdepth']=4
+				#png_out_file =open("bmp-gtr" + os.path.sep + "%08x.png" % unicode,"wb")
+				png_out_file =open("bmp-gtr" + os.path.sep + "%08x-%s-%s.png" %  (unicode,"".join(["%02x" % el for el in list(last_block)]),modino ),"wb")
+				pngwriter=png.Writer(width, height, **png_attr)				
 				pngwriter.write(png_out_file,png_out_image)
 				png_out_file.close()
 				print ("file %s saved" %"bmp-gtr" + os.path.sep + "%08x.png" % unicode)
@@ -162,6 +165,9 @@ def unpackFont(font_path):
 				dummypng = open("bmp-gtr" + os.path.sep + "%08x.png" % unicode,"wb")
 				#dummypng.write(char(0x0)
 				dummypng.close()
+
+		pointer -=0xe
+		last_block = file_content[pointer:pointer+0xe]
 
 		print ()
 
@@ -177,7 +183,7 @@ def packFont(font_path):
 	seq_nr = 0
 	startrange = -1
 	
-	bmp_files = sorted(glob.glob('bmp-gtr' +  os.sep + '*'))
+	bmp_files = sorted(glob.glob('bmp-gtr' +  os.sep + '*.png'))
 
 	for i in range (0, len(bmp_files)):
 		#margin_top = int(bmp_files[i].split(os.sep)[1][4:6],16)
@@ -211,6 +217,8 @@ def packFont(font_path):
 			if depth != 4 or not grey and alpha:
 				print ("Image %s not compatible, should be grayscale, bitdepth 4, without alpha channel" % (bmp_files[i]))
 			
+			
+			bmpsraw=bytearray()
 			raw_out_image=''
 			print ("w:%d h:%d" %(width,height))
 			for row in png_in_image:
@@ -218,22 +226,29 @@ def packFont(font_path):
 				#shift_mask=8-depth
 				shift_mask=0
 				value=0
-				for i in range(0,len(row)):
-					#value|=(row[i]<<shift_mask)
-					value|=(row[i]<<shift_mask)
+				for ii in range(0,len(row)):
+					#value|=(row[ii]<<shift_mask)
+					value|=(row[ii]<<shift_mask)
 					#if (shift_mask ==0):
 					if (shift_mask == depth):
 						bmps.extend(value.to_bytes(1, 'big'))
+						bmpsraw.extend(value.to_bytes(1, 'big'))
 						value=0
 						#shift_mask=8-depth
 						shift_mask=0
 					else:
 						#shift_mask-=depth
 						shift_mask+=depth
+				if (len(row) % 2) != 0:
+					value = 0
+					bmps.extend(value.to_bytes(1, 'big'))
+					bmpsraw.extend(value.to_bytes(1, 'big'))
 				#if ( shift_mask != 8-depth):
 				#	bmps.extend(value.to_bytes(1, 'big'))
 			
-			
+			f = open(bmp_files[i]+".raw","wb")
+			f.write(bmpsraw)
+			f.close()
 			#if (unicode+1 != next_unicode):
 			#	endrange = unicode
 			#	sb = startrange.to_bytes(2, byteorder='big')
