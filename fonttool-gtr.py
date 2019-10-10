@@ -175,9 +175,9 @@ def unpackFont(font_path):
 # Create a Amazfit Bip file from bmps
 def packFont(font_path):
 	print('Packing', font_path)
-	font_file = open(font_path, 'wb')
 	header = bytearray(binascii.unhexlify('4E455A4B08FFFFFFFFFF01000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'))
 	bmps = bytearray()
+	mappings = bytearray()
 	
 	range_nr = 0
 	seq_nr = 0
@@ -205,6 +205,18 @@ def packFont(font_path):
 				startrange = unicode
 			
 			print (bmp_files[i])
+			mappings.extend(len(bmps).to_bytes(4,'big')) #address
+			mappings.extend(unicode.to_bytes(2,'big')) #address
+			wi = 0
+			he = 0
+			mappings.extend(wi.to_bytes(1,'big')) #address
+			mappings.extend(he.to_bytes(1,'big')) #address
+			mappings.extend(wi.to_bytes(1,'big')) #address
+			mappings.extend(he.to_bytes(1,'big')) #address
+			mappings.extend(wi.to_bytes(1,'big')) #address
+			mappings.extend(binascii.unhexlify('FF0001')) #address
+
+
 			if os.stat(bmp_files[i]).st_size == 0:
 				continue
 			pngreader = png.Reader(bmp_files[i])
@@ -216,7 +228,6 @@ def packFont(font_path):
 			
 			if depth != 4 or not grey and alpha:
 				print ("Image %s not compatible, should be grayscale, bitdepth 4, without alpha channel" % (bmp_files[i]))
-			
 			
 			bmpsraw=bytearray()
 			raw_out_image=''
@@ -267,8 +278,11 @@ def packFont(font_path):
 
 	rnr = range_nr.to_bytes(2, byteorder='big')
 
+	font_file = open(font_path, 'wb')
 	font_file.write(header)	
-	font_file.write(bmps)		
+	font_file.write(bmps)
+	font_file.write(bytes([0]*7))##fixme) #7 should be computated to align
+	font_file.write(mappings)
 
 if len(sys.argv) == 3 and sys.argv[1] == 'unpack':
 	unpackFont(sys.argv[2])
