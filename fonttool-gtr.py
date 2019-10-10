@@ -205,20 +205,27 @@ def packFont(font_path):
 				startrange = unicode
 			
 			print (bmp_files[i])
-			mappings.extend(len(bmps).to_bytes(4,'big')) #address
-			mappings.extend(unicode.to_bytes(2,'big')) #address
-			wi = 0
-			he = 0
-			mappings.extend(wi.to_bytes(1,'big')) #address
-			mappings.extend(he.to_bytes(1,'big')) #address
-			mappings.extend(wi.to_bytes(1,'big')) #address
-			mappings.extend(he.to_bytes(1,'big')) #address
-			mappings.extend(wi.to_bytes(1,'big')) #address
-			mappings.extend(binascii.unhexlify('FF0001')) #address
-
+			mappings.extend(len(bmps).to_bytes(4,'little')) #address
+			mappings.extend(unicode.to_bytes(2,'little')) #address
 
 			if os.stat(bmp_files[i]).st_size == 0:
+				width = 0
+				height = 0
+				mappings.extend(width.to_bytes(1,'big')) 
+				mappings.extend(height.to_bytes(1,'big')) 
+				mappings.extend(width.to_bytes(1,'big')) 
+				mappings.extend(height.to_bytes(1,'big')) 
+				mappings.extend(height.to_bytes(1,'big')) 
+				mappings.extend(binascii.unhexlify('FF0001')) 
 				continue
+			unk = 0
+			mappings.extend(width.to_bytes(1,'big')) 
+			mappings.extend(height.to_bytes(1,'big')) 
+			mappings.extend(unk.to_bytes(1,'big')) 
+			mappings.extend(unk.to_bytes(1,'big')) 
+			mappings.extend(unk.to_bytes(1,'big')) 
+			mappings.extend(binascii.unhexlify('FF0001')) 
+
 			pngreader = png.Reader(bmp_files[i])
 			(width, height, png_in_image, attr) = pngreader.read()
 			
