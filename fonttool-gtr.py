@@ -48,6 +48,8 @@ import png
 
 #le immagini sono 4bpp
 
+dirname = "bmp-gtr"
+
 
 # Unpack the Amazfit Bip font file
 # Creates 1bpp bmp images
@@ -56,8 +58,8 @@ def unpackFont(font_path):
 	
 	font_file = open(font_path, 'rb')
 	font_path.join(font_path.split(os.sep)[:-1])
-	if not os.path.exists('bmp-gtr'):
-		os.makedirs('bmp-gtr')
+	if not os.path.exists(dirname):
+		os.makedirs(dirname)
 	# header = 16 bytes
 	file_content = font_file.read()
 	header = file_content[0x0:0x20]
@@ -80,8 +82,8 @@ def unpackFont(font_path):
 	unicode = (ord(last_block[5:6])<<8) + (ord(last_block[4:5])<<0)
 	pointer=0
 	img_addr=0
-	#print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%08x" %(pointer, last_block.hex(), img_addr, unicode, ))
-	print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%08x" %(pointer, " ".join(["%02x" % el for el in list(last_block)]), img_addr, unicode, ))
+	#print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%04x" %(pointer, last_block.hex(), img_addr, unicode, ))
+	print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%04x" %(pointer, " ".join(["%02x" % el for el in list(last_block)]), img_addr, unicode, ))
 	
 	
 	width=ord(last_block[6:7])
@@ -104,10 +106,13 @@ def unpackFont(font_path):
 		unicode = (ord(last_block[5:6])<<8) + (ord(last_block[4:5])<<0)
 		width=ord(last_block[6:7])
 		height=ord(last_block[7:8])
-		#print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%08x" %(pointer, last_block.hex(), img_addr, unicode, ))
+		
+		# FF0061 = carattere combinato
+		
+		#print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%04x" %(pointer, last_block.hex(), img_addr, unicode, ))
 		print ("           ptr_to_img |U+xxy|w |h |        |footer  |")
 		print ("----------------------|-----|--|--|--|--|--|--------|")
-		print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%08x" %(pointer, " ".join(["%02x" % el for el in list(last_block)]), img_addr, unicode, ))
+		print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%04x" %(pointer, " ".join(["%02x" % el for el in list(last_block)]), img_addr, unicode, ))
 		if False: #unicode != 0x00c7 and unicode != 0x00c8 :
 			#print (unicode)
 			continue
@@ -117,7 +122,7 @@ def unpackFont(font_path):
 
 			print ("imgsize:0x%04x h:%d w:%d h:%x w:%x" % (imgsize,height,width,height,width))
 			#write_raw_image_data
-			bmp = open("gtr\\%08x.data" % unicode, 'wb')
+			bmp = open(dirname + os.path.sep + "%04x-%s-%s.data" %  (unicode,"".join(["%02x" % el for el in list(last_block[6::])]),"" ),"wb")
 			bmp.write(file_content[0x20+img_addr:0x20+img_addr+imgsize])
 			bmp.close()
 						
@@ -140,11 +145,11 @@ def unpackFont(font_path):
 						if (col % 2) == 0:
 						    #dispari - sembra abbia problemi!!!!
 							ch = ord(file_content[0x20+img_addr+row*((width+1)//2) + col//2:0x20+img_addr+row*((width+1)//2)+ col//2+1]) &0xf
-							modino = "pari"
+							modino = "dispari"
 						else:
 						    #pari ok
 							ch = ord(file_content[0x20+img_addr+row*((width+1)//2) + col//2:0x20+img_addr+row*((width+1)//2)+ col//2+1]) >>4
-							modino = "dispari"
+							modino = "pari"
 						#if row==11 and unicode==0x0028:
 						#	print(col,0x20+img_addr+pos,file_content[0x20+img_addr+pos:0x20+img_addr+pos+1],ch)
 						
@@ -156,13 +161,13 @@ def unpackFont(font_path):
 				png_attr["greyscale"] = True
 				png_attr['bitdepth']=4
 				#png_out_file =open("bmp-gtr" + os.path.sep + "%08x.png" % unicode,"wb")
-				png_out_file =open("bmp-gtr" + os.path.sep + "%08x-%s-%s.png" %  (unicode,"".join(["%02x" % el for el in list(last_block)]),modino ),"wb")
+				png_out_file = open(dirname + os.path.sep + "%04x-%s-%s.png" %  (unicode,"".join(["%02x" % el for el in list(last_block[6::])]),modino ),"wb")
 				pngwriter=png.Writer(width, height, **png_attr)				
 				pngwriter.write(png_out_file,png_out_image)
 				png_out_file.close()
-				print ("file %s saved" %"bmp-gtr" + os.path.sep + "%08x.png" % unicode)
+				print ("file %s saved" % dirname + os.path.sep + "%04x.png" % unicode)
 			else:
-				dummypng = open("bmp-gtr" + os.path.sep + "%08x.png" % unicode,"wb")
+				dummypng = open(dirname + os.path.sep + "%04x-%s-%s.png" %  (unicode,"".join(["%02x" % el for el in list(last_block[6::])]),"" ),"wb")
 				#dummypng.write(char(0x0)
 				dummypng.close()
 
@@ -183,18 +188,18 @@ def packFont(font_path):
 	seq_nr = 0
 	startrange = -1
 	
-	bmp_files = sorted(glob.glob('bmp-gtr' +  os.sep + '*.png'))
+	bmp_files = sorted(glob.glob(dirname +  os.sep + '*.png'))
 
 	for i in range (0, len(bmp_files)):
 		#margin_top = int(bmp_files[i].split(os.sep)[1][4:6],16)
 		
 		if(i == 0):
-			unicode = int(bmp_files[i].split(os.sep)[1][0:8],16)
+			unicode = int(bmp_files[i].split(os.sep)[1][0:4],16)
 		else:
 			unicode = next_unicode
 		
 		if(i+1 < len(bmp_files)):
-			next_unicode = int(bmp_files[i+1].split(os.sep)[1][0:8],16)
+			next_unicode = int(bmp_files[i+1].split(os.sep)[1][0:4],16)
 		else:
 			next_unicode = -1
 		print (unicode,next_unicode)
@@ -236,7 +241,7 @@ def packFont(font_path):
 			if depth != 4 or not grey and alpha:
 				print ("Image %s not compatible, should be grayscale, bitdepth 4, without alpha channel" % (bmp_files[i]))
 			
-			bmpsraw=bytearray()
+			bmpsraw = bytearray() #DEBUG CODE
 			raw_out_image=''
 			print ("w:%d h:%d" %(width,height))
 			for row in png_in_image:
@@ -250,7 +255,7 @@ def packFont(font_path):
 					#if (shift_mask ==0):
 					if (shift_mask == depth):
 						bmps.extend(value.to_bytes(1, 'big'))
-						bmpsraw.extend(value.to_bytes(1, 'big'))
+						bmpsraw.extend(value.to_bytes(1, 'big'))  #DEBUG CODE
 						value=0
 						#shift_mask=8-depth
 						shift_mask=0
@@ -260,13 +265,13 @@ def packFont(font_path):
 				if (len(row) % 2) != 0:
 					value = 0
 					bmps.extend(value.to_bytes(1, 'big'))
-					bmpsraw.extend(value.to_bytes(1, 'big'))
+					bmpsraw.extend(value.to_bytes(1, 'big'))  #DEBUG CODE
 				#if ( shift_mask != 8-depth):
 				#	bmps.extend(value.to_bytes(1, 'big'))
 			
-			f = open(bmp_files[i]+".raw","wb")
-			f.write(bmpsraw)
-			f.close()
+			f = open(bmp_files[i]+".raw","wb")  #DEBUG CODE
+			f.write(bmpsraw)  #DEBUG CODE
+			f.close()  #DEBUG CODE
 			#if (unicode+1 != next_unicode):
 			#	endrange = unicode
 			#	sb = startrange.to_bytes(2, byteorder='big')
