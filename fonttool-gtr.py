@@ -195,13 +195,17 @@ def packFont(font_path):
 		
 		if(i == 0):
 			unicode = int(bmp_files[i].split(os.sep)[1][0:4],16)
+			blob = binascii.unhexlify(bmp_files[i].split(os.sep)[1][9:21])
 		else:
 			unicode = next_unicode
+			blob = next_blob
 		
 		if(i+1 < len(bmp_files)):
 			next_unicode = int(bmp_files[i+1].split(os.sep)[1][0:4],16)
+			next_blob = binascii.unhexlify(bmp_files[i+1].split(os.sep)[1][9:21])
 		else:
 			next_unicode = -1
+			
 		print (unicode,next_unicode)
 		
 		if (unicode != next_unicode):		
@@ -218,21 +222,22 @@ def packFont(font_path):
 				height = 0
 				mappings.extend(width.to_bytes(1,'big')) 
 				mappings.extend(height.to_bytes(1,'big')) 
-				mappings.extend(width.to_bytes(1,'big')) 
-				mappings.extend(height.to_bytes(1,'big')) 
-				mappings.extend(height.to_bytes(1,'big')) 
-				mappings.extend(binascii.unhexlify('FF0001')) 
+				#mappings.extend(width.to_bytes(1,'big')) 
+				#mappings.extend(height.to_bytes(1,'big')) 
+				#mappings.extend(height.to_bytes(1,'big')) 
+				#mappings.extend(binascii.unhexlify('FF0001')) 
+				mappings.extend(blob)
 				continue
+			pngreader = png.Reader(bmp_files[i])
+			(width, height, png_in_image, attr) = pngreader.read()
 			unk = 0
 			mappings.extend(width.to_bytes(1,'big')) 
 			mappings.extend(height.to_bytes(1,'big')) 
-			mappings.extend(unk.to_bytes(1,'big')) 
-			mappings.extend(unk.to_bytes(1,'big')) 
-			mappings.extend(unk.to_bytes(1,'big')) 
-			mappings.extend(binascii.unhexlify('FF0001')) 
-
-			pngreader = png.Reader(bmp_files[i])
-			(width, height, png_in_image, attr) = pngreader.read()
+			#mappings.extend(unk.to_bytes(1,'big')) 
+			#mappings.extend(unk.to_bytes(1,'big')) 
+			#mappings.extend(unk.to_bytes(1,'big')) 
+			#mappings.extend(binascii.unhexlify('FF0001'))
+			mappings.extend(blob)
 			
 			depth=attr['bitdepth']
 			grey=attr['greyscale']
