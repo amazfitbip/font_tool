@@ -80,7 +80,7 @@ def unpackFont(font_path):
 	config["fontFlags"] = fontFlag
 	config["fontVersion"] = fontVersion
 	
-	fjson =  open(dirname + os.path.sep + "_font_info.json","w")
+	fjson =  open(dirname + os.path.sep + "_font_info.json", "w")
 	json.dump(config, fjson, indent=4, sort_keys=True)
 	fjson.close()
 	
@@ -188,9 +188,18 @@ def unpackFont(font_path):
 # Create a Amazfit Bip file from bmps
 def packFont(font_path):
 	print('Packing', font_path)
-	header = bytearray(binascii.unhexlify('4E455A4B08FFFFFFFFFF01000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'))
+	
+	fjson = open(dirname + os.path.sep + "_font_info.json", "r")
+	config = json.load(fjson)
+	fjson.close()
+	
+	#header = bytearray(binascii.unhexlify('4E455A4B08FFFFFFFFFF01000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'))
+	header = bytearray(binascii.unhexlify('4E455A4B99FFFFFFFFFF99000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'))
 	bmps = bytearray()
 	mappings = bytearray()
+	
+	header[0x0A] = config["fontFlags"]
+	header[0x04] = config["fontVersion"]
 	
 	range_nr = 0
 	seq_nr = 0
