@@ -19,6 +19,7 @@ import sys
 import os
 import glob
 import png
+import json
 
 # ! @x20 widht 2x22 (32)  0x20-0x4c
 # " @x4c width 5x9  (76)
@@ -64,8 +65,8 @@ def unpackFont(font_path):
 	file_content = font_file.read()
 	header = file_content[0x0:0x20]
 	#header = font_file.read(0x22)
-	font_format = ord(header[4:5])
-	print ("font_format",font_format)
+	fontVersion = ord(header[4:5])
+	print ("fontVersion",fontVersion)
 	#num_ranges = (header[0x21] << 8) + header[0x20]
 	#print ("num_ranges 0x%x" % num_ranges)
 	
@@ -75,6 +76,13 @@ def unpackFont(font_path):
 	print ("non-Latin: %s" % (isNonLatin))
 	print ("Latin:     %s" % (isLatin))
 	
+	config = {}
+	config["fontFlags"] = fontFlag
+	config["fontVersion"] = fontVersion
+	
+	fjson =  open(dirname + os.path.sep + "_font_info.json","w")
+	json.dump(config, fjson, indent=4, sort_keys=True)
+	fjson.close()
 	
 	last_block = file_content[-0xe::]
 	print ("last_block", last_block)
