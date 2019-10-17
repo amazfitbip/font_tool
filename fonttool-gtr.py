@@ -56,7 +56,7 @@ dirname = "bmp-gtr"
 
 # Unpack the Amazfit Bip font file
 # Creates 1bpp bmp images
-def unpackFont(font_path):
+def unpackFont(font_path, raw = None):
 	print('Unpacking', font_path)
 	
 	font_file = open(font_path, 'rb')
@@ -125,10 +125,12 @@ def unpackFont(font_path):
 			imgsize = int((width+1) //2) *height
 
 			print ("imgsize:0x%04x h:%d w:%d h:%x w:%x" % (imgsize,height,width,height,width))
-			#write_raw_image_data
-			bmp = open(dirname + os.path.sep + "%04x-%s-%s.data" %  (unicode,"".join(["%02x" % el for el in list(last_block[6::])]),"" ),"wb")
-			bmp.write(file_content[0x20+img_addr:0x20+img_addr+imgsize])
-			bmp.close()
+			
+			if raw:
+				#write_raw_image_data
+				bmp = open(dirname + os.path.sep + "%04x-%s-%s.data" %  (unicode,"".join(["%02x" % el for el in list(last_block[6::])]),"" ),"wb")
+				bmp.write(file_content[0x20+img_addr:0x20+img_addr+imgsize])
+				bmp.close()
 						
 			if width >0 and height >0:
 				#if unicode == 0x000021:
@@ -193,7 +195,7 @@ def unpackFont(font_path):
 
 
 # Create a Amazfit Bip file from bmps
-def packFont(font_path):
+def packFont(font_path, raw = None):
 	print('Packing', font_path)
 	
 	fjson = open(dirname + os.path.sep + "_font_info.json", "r")
@@ -297,10 +299,11 @@ def packFont(font_path):
 					bmpsraw.extend(value.to_bytes(1, 'big'))  #DEBUG CODE
 				#if ( shift_mask != 8-depth):
 				#	bmps.extend(value.to_bytes(1, 'big'))
-			
-			f = open(bmp_files[i]+".raw","wb")  #DEBUG CODE
-			f.write(bmpsraw)  #DEBUG CODE
-			f.close()  #DEBUG CODE
+
+			if raw:
+				f = open(bmp_files[i]+".raw","wb")  #DEBUG CODE
+				f.write(bmpsraw)  #DEBUG CODE
+				f.close()  #DEBUG CODE
 			#if (unicode+1 != next_unicode):
 			#	endrange = unicode
 			#	sb = startrange.to_bytes(2, byteorder='big')
@@ -331,8 +334,8 @@ def packFont(font_path):
 
 parser = argparse.ArgumentParser(description="Font tool for amazfit")
 parser.add_argument('-d', '--directory', dest='dirname', default=dirname)
-parser.add_argument("mode", 
-                    help="<pack|unpack>")
+parser.add_argument('-r', '--raw', dest='raw', action='store_true')
+parser.add_argument("mode", help="<pack|unpack>")
 parser.add_argument("filename", 
                     help="<filename>")
 args = parser.parse_args()
@@ -341,9 +344,9 @@ if args.dirname:
 	dirname = args.dirname
 
 if args.mode and args.mode == 'unpack':
-	unpackFont(args.filename)
+	unpackFont(args.filename, raw = args.raw)
 elif args.mode and args.mode == 'pack':
-	packFont(args.filename)
+	packFont(args.filename, raw = args.raw)
 else:
 	print('Usage:')
 	print('   python', sys.argv[0], 'unpack Mili_falcon.ft')
