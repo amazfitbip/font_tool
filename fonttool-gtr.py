@@ -21,6 +21,8 @@ import glob
 import png
 import json
 
+import argparse
+
 # ! @x20 widht 2x22 (32)  0x20-0x4c
 # " @x4c width 5x9  (76)
 # # @x78 width 10x22 (121)
@@ -75,15 +77,7 @@ def unpackFont(font_path):
 	isLatin = bool((fontFlag & 2)>>1)
 	print ("non-Latin: %s" % (isNonLatin))
 	print ("Latin:     %s" % (isLatin))
-	
-	config = {}
-	config["fontFlags"] = fontFlag
-	config["fontVersion"] = fontVersion
-	
-	fjson =  open(dirname + os.path.sep + "_font_info.json", "w")
-	json.dump(config, fjson, indent=4, sort_keys=True)
-	fjson.close()
-	
+		
 	last_block = file_content[-0xe::]
 	print ("last_block", last_block)
 	last_img = (ord(last_block[3:4])<<24) + (ord(last_block[2:3])<<16) + (ord(last_block[1:2])<<8)+ (ord(last_block[0:1])<<0)
@@ -93,6 +87,7 @@ def unpackFont(font_path):
 	#print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%04x" %(pointer, last_block.hex(), img_addr, unicode, ))
 	print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%04x" %(pointer, " ".join(["%02x" % el for el in list(last_block)]), img_addr, unicode, ))
 	
+	addresses = 0
 	
 	width=ord(last_block[6:7])
 	height=ord(last_block[7:8])
@@ -106,6 +101,7 @@ def unpackFont(font_path):
 	pointer =-0xe	
 	print ("pointer; 0x%06x" % pointer )
 	while last_block[-4::] != b'\x00\x00\x00\x00':
+		addresses += 1
 		#next_block = file_content[pointer+0xe:pointer+0xe+0xe]
 		
 		#next_img_addr = (ord(next_block[3:4])<<24) + (ord(next_block[2:3])<<16) + (ord(next_block[1:2])<<8)+ (ord(next_block[0:1])<<0)
@@ -183,6 +179,17 @@ def unpackFont(font_path):
 		last_block = file_content[pointer:pointer+0xe]
 
 		print ()
+
+	config = {}
+	config["fontFlags"] = fontFlag
+	config["fontVersion"] = fontVersion
+	config["offset"] = len(file_content) + pointer + 0xe
+	config["addresses"] = addresses
+	
+	
+	fjson =  open(dirname + os.path.sep + "_font_info.json", "w")
+	json.dump(config, fjson, indent=4, sort_keys=True)
+	fjson.close()
 
 
 # Create a Amazfit Bip file from bmps
@@ -315,8 +322,19 @@ def packFont(font_path):
 	font_file = open(font_path, 'wb')
 	font_file.write(header)	
 	font_file.write(bmps)
-	font_file.write(bytes([0]*7))##fixme) #7 should be computated to align
+	print (len(bmps))
+	if len(bmps) > config["offset"] - 0x20:
+		print ("file too big, remove some fonts %d > %d" % (len(bmps) , config["offset"]) )
+		sys.exit(1)
+	font_file.write(bytes([0]* (config["offset"] - len(bmps) - 0x20)  ))##fixme) #7 should be computated to align
 	font_file.write(mappings)
+
+parser = argparse.ArgumentParser(description="Font tool for amazfit")
+parser.add_argument('-d', '--directory', dest='dirname', default=dirname)
+args = parser.parse_args()
+
+if args.dirname:
+	dirname = args.dirname
 
 if len(sys.argv) == 3 and sys.argv[1] == 'unpack':
 	unpackFont(sys.argv[2])
