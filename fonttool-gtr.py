@@ -331,15 +331,19 @@ def packFont(font_path):
 
 parser = argparse.ArgumentParser(description="Font tool for amazfit")
 parser.add_argument('-d', '--directory', dest='dirname', default=dirname)
+parser.add_argument("mode", 
+                    help="<pack|unpack>")
+parser.add_argument("filename", 
+                    help="<filename>")
 args = parser.parse_args()
 
 if args.dirname:
 	dirname = args.dirname
 
-if len(sys.argv) == 3 and sys.argv[1] == 'unpack':
-	unpackFont(sys.argv[2])
-elif len(sys.argv) == 3 and sys.argv[1] == 'pack':
-	packFont(sys.argv[2])
+if args.mode and args.mode == 'unpack':
+	unpackFont(args.filename)
+elif args.mode and args.mode == 'pack':
+	packFont(args.filename)
 else:
 	print('Usage:')
 	print('   python', sys.argv[0], 'unpack Mili_falcon.ft')
