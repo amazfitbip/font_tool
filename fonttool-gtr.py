@@ -23,6 +23,9 @@ import json
 
 import argparse
 
+#site with unicode ranges
+#https://www.compart.com/en/unicode/block/U+A720
+
 # ! @x20 widht 2x22 (32)  0x20-0x4c
 # " @x4c width 5x9  (76)
 # # @x78 width 10x22 (121)
@@ -34,7 +37,9 @@ import argparse
 #@4db30 fine file
 
 #http://www.brescianet.com/appunti/vari/unicode.htm#Latino_base
-#ofs         ASC       h        w
+#w+ is the w+ the space between the next char
+#vo is the vertical offset of the image...
+#ofs         Ul  Uh w  h  vo    w+
 #00 00 00 00 00  00 00 00 00 00 00 ff 00 01 nul
 #00 00 00 00 0d  00 00 00 00 00 08 ff 00 01 cr
 #00 00 00 00 20  00 00 00 00 00 08 ff 00 01 sp
@@ -56,7 +61,7 @@ dirname = "bmp-gtr"
 
 # Unpack the Amazfit Bip font file
 # Creates 1bpp bmp images
-def unpackFont(font_path, raw = None):
+def unpackFont(font_path, raw = None, verbose = 0):
 	print('Unpacking', font_path)
 	
 	font_file = open(font_path, 'rb')
@@ -114,9 +119,10 @@ def unpackFont(font_path, raw = None):
 		# FF0061 = carattere combinato
 		
 		#print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%04x" %(pointer, last_block.hex(), img_addr, unicode, ))
-		print ("           ptr_to_img |U+xxy|w |h |        |footer  |")
-		print ("----------------------|-----|--|--|--|--|--|--------|")
-		print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%04x" %(pointer, " ".join(["%02x" % el for el in list(last_block)]), img_addr, unicode, ))
+		if verbose > 0:
+			print ("           ptr_to_img |U+xxy|w |h |      w+|footer  |")
+			print ("----------------------|-----|--|--|--|--|--|--------|")
+			print ("ptr=%06x %s img_data_addr=%08x+0x20 unicode=%04x" %(pointer, " ".join(["%02x" % el for el in list(last_block)]), img_addr, unicode, ))
 		if False: #unicode != 0x00c7 and unicode != 0x00c8 :
 			#print (unicode)
 			continue
@@ -124,7 +130,8 @@ def unpackFont(font_path, raw = None):
 		elif True:
 			imgsize = int((width+1) //2) *height
 
-			print ("imgsize:0x%04x h:%d w:%d h:%x w:%x" % (imgsize,height,width,height,width))
+			if verbose > 0:
+				print ("imgsize:0x%04x h:%d w:%d h:%x w:%x" % (imgsize,height,width,height,width))
 			
 			if raw:
 				#write_raw_image_data
@@ -171,7 +178,8 @@ def unpackFont(font_path, raw = None):
 				pngwriter=png.Writer(width, height, **png_attr)				
 				pngwriter.write(png_out_file,png_out_image)
 				png_out_file.close()
-				print ("file %s saved" % dirname + os.path.sep + "%04x.png" % unicode)
+				if verbose > 0:
+					print ("file %s saved" % (dirname + os.path.sep + "%04x.png" % unicode))
 			else:
 				dummypng = open(dirname + os.path.sep + "%04x-%s-%s.png" %  (unicode,"".join(["%02x" % el for el in list(last_block[6::])]),"" ),"wb")
 				#dummypng.write(char(0x0)
@@ -180,7 +188,8 @@ def unpackFont(font_path, raw = None):
 		pointer -=0xe
 		last_block = file_content[pointer:pointer+0xe]
 
-		print ()
+		if verbose >0:
+			print ()
 
 	config = {}
 	config["fontFlags"] = fontFlag
@@ -195,7 +204,7 @@ def unpackFont(font_path, raw = None):
 
 
 # Create a Amazfit Bip file from bmps
-def packFont(font_path, raw = None):
+def packFont(font_path, raw = None, verbose = 0):
 	print('Packing', font_path)
 	
 	fjson = open(dirname + os.path.sep + "_font_info.json", "r")
@@ -232,14 +241,16 @@ def packFont(font_path, raw = None):
 		else:
 			next_unicode = -1
 			
-		print (unicode,next_unicode)
+		if verbose > 0:
+			print (unicode,next_unicode)
 		
 		if (unicode != next_unicode):		
 			if (startrange == -1):
 				range_nr += 1			 
 				startrange = unicode
 			
-			print (bmp_files[i])
+			if verbose > 0:
+				print (bmp_files[i])
 			mappings.extend(len(bmps).to_bytes(4,'little')) #address
 			mappings.extend(unicode.to_bytes(2,'little')) #address
 
@@ -325,7 +336,8 @@ def packFont(font_path, raw = None):
 	font_file = open(font_path, 'wb')
 	font_file.write(header)	
 	font_file.write(bmps)
-	print (len(bmps))
+	if verbose > 0:
+		print (len(bmps))
 	if len(bmps) > config["offset"] - 0x20:
 		print ("file too big, remove some fonts %d > %d" % (len(bmps) , config["offset"]) )
 		sys.exit(1)
@@ -335,6 +347,7 @@ def packFont(font_path, raw = None):
 parser = argparse.ArgumentParser(description="Font tool for amazfit")
 parser.add_argument('-d', '--directory', dest='dirname', default=dirname)
 parser.add_argument('-r', '--raw', dest='raw', action='store_true')
+parser.add_argument('-v', dest='verbose', action='count', default=0, help='verbose')
 parser.add_argument("mode", help="<pack|unpack>")
 parser.add_argument("filename", 
                     help="<filename>")
@@ -344,9 +357,9 @@ if args.dirname:
 	dirname = args.dirname
 
 if args.mode and args.mode == 'unpack':
-	unpackFont(args.filename, raw = args.raw)
+	unpackFont(args.filename, raw = args.raw, verbose = args.verbose)
 elif args.mode and args.mode == 'pack':
-	packFont(args.filename, raw = args.raw)
+	packFont(args.filename, raw = args.raw, verbose = args.verbose)
 else:
 	print('Usage:')
 	print('   python', sys.argv[0], 'unpack Mili_falcon.ft')
