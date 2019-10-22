@@ -147,35 +147,49 @@ def unpackFont(font_path, raw = None, verbose = 0):
 				png_out_image=[]
 				decode_len=1
 				modino=""
+				depth = 4
+				decode_len=1
+				bit_mask=(pow(2,depth) -1)
+				pos=0x20 + img_addr
 				for row in range(0,height):
 					row_out=[]
-					for col in range(0,width):
-						#if unicode == 0x000021:
-						#
-						#	#print ("%0x"% (0x20+img_addr+pos))
-						#if unicode == 0x0000c7:
-						#	print ("XX",(width+1)//2,(width)//2)
-						if (col % 2) == 0:
-						    #dispari - sembra abbia problemi!!!!
-							ch = ord(file_content[0x20+img_addr+row*((width+1)//2) + col//2:0x20+img_addr+row*((width+1)//2)+ col//2+1]) &0xf
-							modino = "dispari"
+					shift_mask=0
+					value = file_content[pos]
+					for col in range(0,width * decode_len):
+						#decode len is 1 .. or 4 if 32 bits
+#						if unicode == 0x0070:
+#							print ("%02x(%01x)"% (( (value  >> shift_mask) & bit_mask ) *0x11 , shift_mask), end="")
+						row_out.append( ((value  >> shift_mask) & bit_mask) *0x11 )
+						if (shift_mask==8-depth):
+							#byte is full
+							shift_mask=0
+							pos+=1
+							try:
+								value=file_content[pos]
+							except:
+								print ("FIXME", pos, len(self.fileContent))
+							#print 'addr %d val %x'%(pos-16-12-start,value)
 						else:
-						    #pari ok
-							ch = ord(file_content[0x20+img_addr+row*((width+1)//2) + col//2:0x20+img_addr+row*((width+1)//2)+ col//2+1]) >>4
-							modino = "pari"
-						#if row==11 and unicode==0x0028:
-						#	print(col,0x20+img_addr+pos,file_content[0x20+img_addr+pos:0x20+img_addr+pos+1],ch)
-						
-						row_out.append(ch)
+							#we need to fill other bits
+							shift_mask+=depth
+					if ( shift_mask != 0):
+						#other bits are useless
+						pos+=1
+					
+#					if unicode == 0x0070:
+#						print ()
+
 					#print(row_out)
 					png_out_image.append(row_out)
-				#print (png_out_image)
+				#if unicode == 0x0070:
+				#	print (png_out_image, len(png_out_image), len(png_out_image[0]), cnt)
 				png_attr={}
 				png_attr["greyscale"] = True
-				png_attr['bitdepth']=4
+				png_attr['bitdepth']=8
+				png_attr['compression'] = 0
 				#png_out_file =open("bmp-gtr" + os.path.sep + "%08x.png" % unicode,"wb")
 				png_out_file = open(dirname + os.path.sep + "%04x-%s-%s.png" %  (unicode,"".join(["%02x" % el for el in list(last_block[6::])]),modino ),"wb")
-				pngwriter=png.Writer(width, height, **png_attr)				
+				pngwriter=png.Writer(width, height, **png_attr)
 				pngwriter.write(png_out_file,png_out_image)
 				png_out_file.close()
 				if verbose > 0:
@@ -280,36 +294,47 @@ def packFont(font_path, raw = None, verbose = 0):
 			grey=attr['greyscale']
 			alpha=attr['alpha']
 			
-			if depth != 4 or not grey and alpha:
-				print ("Image %s not compatible, should be grayscale, bitdepth 4, without alpha channel" % (bmp_files[i]))
+			if depth != 8 or not grey or alpha:
+				print ("Image %s not compatible, should be grayscale, bitdepth 8, without alpha channel" % (bmp_files[i]))
 			
 			bmpsraw = bytearray() #DEBUG CODE
 			raw_out_image=''
-			print ("w:%d h:%d" %(width,height))
+			if verbose > 0:
+				print ("w:%d h:%d" %(width,height))
+			cnt=0
+			depth=4
 			for row in png_in_image:
-				row_out=''
-				#shift_mask=8-depth
 				shift_mask=0
 				value=0
 				for ii in range(0,len(row)):
-					#value|=(row[ii]<<shift_mask)
-					value|=(row[ii]<<shift_mask)
-					#if (shift_mask ==0):
-					if (shift_mask == depth):
+#					if unicode == 0x0070:
+#						print ("%02x(%01x)" % (row[ii], shift_mask), end="" )
+					value|=((row[ii]//0x10) <<shift_mask)
+					if (shift_mask ==8-depth):
+						if unicode == 0x0070:
+							print ("%02x(%01x)" % (value, shift_mask), end="" )
 						bmps.extend(value.to_bytes(1, 'big'))
 						bmpsraw.extend(value.to_bytes(1, 'big'))  #DEBUG CODE
 						value=0
-						#shift_mask=8-depth
 						shift_mask=0
 					else:
-						#shift_mask-=depth
 						shift_mask+=depth
-				if (len(row) % 2) != 0:
-					value = 0
+				if ( shift_mask != 0):
 					bmps.extend(value.to_bytes(1, 'big'))
 					bmpsraw.extend(value.to_bytes(1, 'big'))  #DEBUG CODE
-				#if ( shift_mask != 8-depth):
+
+				#if (len(row) % 2) != 0:
+				#	value = 0
 				#	bmps.extend(value.to_bytes(1, 'big'))
+				#	bmpsraw.extend(value.to_bytes(1, 'big'))  #DEBUG CODE
+				#if ( shift_mask != 8-depth):
+				#	print ("SHIFT_MASK %d %04x" %(shift_mask, unicode))
+				#	bmps.extend(value.to_bytes(1, 'big'))
+				if unicode == 0x0070:
+					print ()
+
+			if unicode == 0x0070:
+				print ("cnt",cnt,depth,width,height, width*height)
 
 			if raw:
 				f = open(bmp_files[i]+".raw","wb")  #DEBUG CODE
