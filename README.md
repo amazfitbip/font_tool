@@ -10,7 +10,7 @@ Supported devices:
 Xiaomi MI Band 2 - (C) José Rebelo  
 Xiaomi MI Band 4 - (C) Eddi De Pieri  
 Amazfit BIP - (C) Yener Durak  
-Amazfit GTR - (C) Eddi De Pieri  
+Amazfit GTR(47mm and 42mm) and Verge Lite - (C) Eddi De Pieri  
 
 Requirements:  
 Python  3.x
